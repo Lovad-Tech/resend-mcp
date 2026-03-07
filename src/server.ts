@@ -19,8 +19,9 @@ export type { ServerOptions } from './types.js';
 export function createMcpServer(
   resend: Resend,
   options: ServerOptions,
+  apiKey?: string,
 ): McpServer {
-  const { senderEmailAddress, replierEmailAddresses } = options;
+  const { senderEmailAddress, replierEmailAddresses, appBaseUrl } = options;
   const server = new McpServer({
     name: 'resend',
     version: packageJson.version,
@@ -29,6 +30,8 @@ export function createMcpServer(
   addBroadcastTools(server, resend, {
     senderEmailAddress,
     replierEmailAddresses,
+    appBaseUrl,
+    apiKey,
   });
   addContactPropertyTools(server, resend);
   addContactTools(server, resend);

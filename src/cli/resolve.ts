@@ -51,9 +51,15 @@ export function resolveConfig(
 
   const port = parsePort(parsed, env);
 
+  const appBaseUrl =
+    (typeof parsed['app-url'] === 'string' ? parsed['app-url'] : null) ??
+    env.RESEND_APP_BASE_URL ??
+    'https://resend.com';
+
   const base = {
     senderEmailAddress: senderEmailAddress ?? '',
     replierEmailAddresses: parseReplierAddresses(parsed, env),
+    appBaseUrl,
     port,
   };
 

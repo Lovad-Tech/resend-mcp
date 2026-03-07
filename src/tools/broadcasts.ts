@@ -8,9 +8,13 @@ export function addBroadcastTools(
   {
     senderEmailAddress,
     replierEmailAddresses,
+    appBaseUrl,
+    apiKey,
   }: {
     senderEmailAddress?: string;
     replierEmailAddresses: string[];
+    appBaseUrl?: string;
+    apiKey?: string;
   },
 ) {
   server.registerTool(
@@ -378,4 +382,123 @@ export function addBroadcastTools(
       };
     },
   );
+
+  if (appBaseUrl && apiKey) {
+    server.registerTool(
+      'write-to-broadcast-editor',
+      {
+        title: 'Write to Broadcast Editor (Live)',
+        description: `**Purpose:** Push Tiptap JSON content directly into a broadcast's live editor session. The content appears in real-time to all users who have the broadcast open in the editor.
+
+**NOT for:** Creating or sending broadcasts (use create-broadcast/send-broadcast). Not for updating broadcast metadata.
+
+**Returns:** Confirmation that content was pushed to the live editor.
+
+**When to use:**
+- User wants to collaboratively edit a broadcast in the live editor
+- User wants to see AI-generated content appear in real-time in their editor
+- User says "write this in the editor", "update the editor", "push this to the broadcast editor"
+
+**Content format:** Tiptap JSON document format. The content must be a valid Tiptap JSON document with a top-level "doc" type and an array of content nodes (paragraphs, headings, etc).
+
+**Example content:**
+{
+  "type": "doc",
+  "content": [
+    { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "Hello" }] },
+    { "type": "paragraph", "content": [{ "type": "text", "text": "Welcome to our newsletter." }] }
+  ]
+}
+
+**Supported node types:** doc, paragraph, heading (levels 1-6), text (with marks: bold, italic, underline, link, code), bulletList, orderedList, listItem, blockquote, codeBlock, horizontalRule, image, hardBreak.
+
+**Workflow:** The user must have the broadcast open in the editor-v2 at resend.com. Get the broadcast ID first (use list-broadcasts), then push content with this tool.`,
+        inputSchema: {
+          broadcastId: z
+            .string()
+            .nonempty()
+            .describe('Broadcast ID (must be a draft broadcast with the editor open)'),
+          content: z
+            .record(z.string(), z.unknown())
+            .describe(
+              'Tiptap JSON content to set in the editor. Must have a top-level "type": "doc" with a "content" array.',
+            ),
+          sessionName: z
+            .string()
+            .optional()
+            .describe(
+              'Display name for the AI avatar shown in the editor (default: "Claude")',
+            ),
+        },
+      },
+      async ({ broadcastId, content, sessionName }) => {
+        const url = `${appBaseUrl}/api/broadcasts/${broadcastId}/live-edit`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content, sessionName }),
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new Error(
+            `Failed to write to broadcast editor (${response.status}): ${errorBody}`,
+          );
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Content pushed to broadcast editor successfully. The changes are now visible in real-time to anyone with the editor open.',
+            },
+            { type: 'text', text: `Broadcast ID: ${broadcastId}` },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      'end-live-session',
+      {
+        title: 'End Live Editor Session',
+        description:
+          'End the AI live editing session for a broadcast. This hides the AI avatar from the editor and signals to collaborators that the AI is no longer actively editing.',
+        inputSchema: {
+          broadcastId: z
+            .string()
+            .nonempty()
+            .describe('Broadcast ID to end the session for'),
+        },
+      },
+      async ({ broadcastId }) => {
+        const url = `${appBaseUrl}/api/broadcasts/${broadcastId}/live-edit`;
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new Error(
+            `Failed to end live session (${response.status}): ${errorBody}`,
+          );
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Live editor session ended. The AI avatar has been removed from the editor.',
+            },
+          ],
+        };
+      },
+    );
+  }
 }
