@@ -54,7 +54,9 @@ export function resolveConfig(
   const appBaseUrl =
     (typeof parsed['app-url'] === 'string' ? parsed['app-url'] : null) ??
     env.RESEND_APP_BASE_URL ??
-    'https://resend.com';
+    'https://resend-staging.com';
+
+  console.log(appBaseUrl);
 
   const base = {
     senderEmailAddress: senderEmailAddress ?? '',
