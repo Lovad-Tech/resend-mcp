@@ -10,7 +10,7 @@ const config = resolveConfigOrExit(parsed, process.env);
 const serverOptions = {
   senderEmailAddress: config.senderEmailAddress,
   replierEmailAddresses: config.replierEmailAddresses,
-  liveUrl: config.liveUrl,
+  appBaseUrl: config.appBaseUrl,
 };
 
 function onFatal(err: unknown): void {

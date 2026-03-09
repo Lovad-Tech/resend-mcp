@@ -12,7 +12,7 @@ const activeSessions = new Map<
 
 function scheduleSessionEnd(
   broadcastId: string,
-  liveUrl: string,
+  appBaseUrl: string,
   apiKey: string,
 ) {
   const existing = activeSessions.get(broadcastId);
@@ -24,7 +24,7 @@ function scheduleSessionEnd(
   const timer = setTimeout(async () => {
     activeSessions.delete(broadcastId);
     try {
-      await fetch(`${liveUrl}/api/broadcasts/${broadcastId}/live-edit`, {
+      await fetch(`${appBaseUrl}/api/broadcasts/${broadcastId}/live-edit`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${apiKey}` },
       });
@@ -39,11 +39,11 @@ function scheduleSessionEnd(
 async function startLiveSession(
   broadcastId: string,
   sessionName: string,
-  liveUrl: string,
+  appBaseUrl: string,
   apiKey: string,
 ) {
   // POST to live-edit without content to establish presence (show avatar)
-  await fetch(`${liveUrl}/api/broadcasts/${broadcastId}/live-edit`, {
+  await fetch(`${appBaseUrl}/api/broadcasts/${broadcastId}/live-edit`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -56,7 +56,7 @@ async function startLiveSession(
     timer: setTimeout(() => {}, 0),
     sessionName,
   });
-  scheduleSessionEnd(broadcastId, liveUrl, apiKey);
+  scheduleSessionEnd(broadcastId, appBaseUrl, apiKey);
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -73,10 +73,10 @@ async function streamContentToEditor(
   broadcastId: string,
   content: Record<string, unknown>,
   sessionName: string | undefined,
-  liveUrl: string,
+  appBaseUrl: string,
   apiKey: string,
 ) {
-  const url = `${liveUrl}/api/broadcasts/${broadcastId}/live-edit`;
+  const url = `${appBaseUrl}/api/broadcasts/${broadcastId}/live-edit`;
   const headers = {
     Authorization: `Bearer ${apiKey}`,
     'Content-Type': 'application/json',
@@ -133,12 +133,12 @@ export function addBroadcastTools(
   {
     senderEmailAddress,
     replierEmailAddresses,
-    liveUrl,
+    appBaseUrl,
     apiKey,
   }: {
     senderEmailAddress?: string;
     replierEmailAddresses: string[];
-    liveUrl?: string;
+    appBaseUrl?: string;
     apiKey?: string;
   },
 ) {
@@ -508,7 +508,7 @@ export function addBroadcastTools(
     },
   );
 
-  if (liveUrl && apiKey) {
+  if (appBaseUrl && apiKey) {
     server.registerTool(
       'connect-to-broadcast',
       {
@@ -539,7 +539,7 @@ export function addBroadcastTools(
         const [broadcastResponse, domainsResponse] = await Promise.all([
           resend.broadcasts.get(broadcastId),
           resend.domains.list(),
-          startLiveSession(broadcastId, 'Claude', liveUrl!, apiKey!),
+          startLiveSession(broadcastId, 'Claude', appBaseUrl!, apiKey!),
         ]);
 
         if (broadcastResponse.error) {
@@ -551,7 +551,9 @@ export function addBroadcastTools(
         const broadcast = broadcastResponse.data;
         const domains = domainsResponse.error
           ? []
-          : domainsResponse.data.data.filter((d) => d.status === 'verified');
+          : domainsResponse.data.data.filter(
+              (d) => d.status === 'verified',
+            );
 
         // Determine document state
         const hasHtmlContent =
@@ -1120,12 +1122,12 @@ Always include a footer with:
           broadcastId,
           content,
           sessionName,
-          liveUrl!,
+          appBaseUrl!,
           apiKey!,
         );
 
         // Reset the inactivity timer — avatar stays visible for another 5 minutes
-        scheduleSessionEnd(broadcastId, liveUrl!, apiKey!);
+        scheduleSessionEnd(broadcastId, appBaseUrl!, apiKey!);
 
         return {
           content: [
@@ -1160,7 +1162,7 @@ Always include a footer with:
           activeSessions.delete(broadcastId);
         }
 
-        const url = `${liveUrl}/api/broadcasts/${broadcastId}/live-edit`;
+        const url = `${appBaseUrl}/api/broadcasts/${broadcastId}/live-edit`;
         const response = await fetch(url, {
           method: 'DELETE',
           headers: {

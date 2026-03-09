@@ -56,16 +56,12 @@ export function resolveConfig(
     env.RESEND_APP_BASE_URL ??
     'https://resend-staging.com';
 
-  const liveUrl =
-    (typeof parsed['live-url'] === 'string' ? parsed['live-url'] : null) ??
-    env.RESEND_LIVE_URL ??
-    appBaseUrl;
+  console.log(appBaseUrl);
 
   const base = {
     senderEmailAddress: senderEmailAddress ?? '',
     replierEmailAddresses: parseReplierAddresses(parsed, env),
     appBaseUrl,
-    liveUrl,
     port,
   };
 
