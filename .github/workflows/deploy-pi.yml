@@ -1,0 +1,60 @@
+name: Deploy Resend MCP to Pi
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      PI_HOST: ${{ secrets.PI_HOST }}
+      PI_USER: ${{ secrets.PI_USER }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$PI_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$PI_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+        env:
+          PI_SSH_KEY: ${{ secrets.PI_SSH_KEY }}
+
+      - name: Deploy to Pi
+        run: |
+          SSH_CMD="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST}"
+
+          # Create deploy directory on Pi
+          $SSH_CMD "mkdir -p ~/resend-mcp"
+
+          # Sync repo to Pi
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ "${PI_USER}@${PI_HOST}:~/resend-mcp/" \
+            --exclude .git \
+            --exclude node_modules
+
+          # Write .env file with API key (never in repo)
+          $SSH_CMD "echo 'RESEND_API_KEY=${RESEND_API_KEY}' > ~/resend-mcp/deploy/.env"
+          $SSH_CMD "chmod 600 ~/resend-mcp/deploy/.env"
+
+          # Build and deploy
+          $SSH_CMD "cd ~/resend-mcp/deploy && docker compose build --pull && docker compose up -d"
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
+      - name: Health check
+        run: |
+          SSH_CMD="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${PI_USER}@${PI_HOST}"
+          echo "Waiting for container to start..."
+          sleep 20
+          $SSH_CMD "docker ps --filter name=resend-mcp --format '{{.Names}} {{.Status}}'"
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
