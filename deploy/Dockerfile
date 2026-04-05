@@ -12,4 +12,4 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 EXPOSE 8765
 USER node
-CMD ["node", "dist/index.js", "--port", "8765"]
+CMD ["node", "dist/index.js", "--http", "--port", "8765"]
